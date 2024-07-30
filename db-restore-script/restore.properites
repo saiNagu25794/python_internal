@@ -1,0 +1,10 @@
+psql_path=D:\postgres-db-backup-script\pgsql\bin\
+database_server=pg_dev1 
+port=5432
+
+from_username=datacoll_ss
+
+restore_filename=D:\postgres-db-backup-script\output\datacoll_ss_20240705.151738.sql
+to_username=datacoll_vy
+password=password
+db=team_db_datacoll
