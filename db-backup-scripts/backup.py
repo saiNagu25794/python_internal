@@ -124,11 +124,22 @@ def create_tar_file(output_path, file_name):
     os.makedirs(tar_file_path, exist_ok=True)
     tar_file_path = os.path.join(tar_file_path, tar_file_name)
 
+    total_size = 0
+    for root, dirs, files in os.walk(output_path):
+        for file in files:
+            if file.endswith('.sql'):
+                total_size += os.path.getsize(os.path.join(root, file))
+
+    progress_size = 0
     with tarfile.open(tar_file_path, 'w:gz') as tar:
         for root, dirs, files in os.walk(output_path):
             for file in files:
                 if file.endswith('.sql'):
-                    tar.add(os.path.join(root, file), arcname=file)
+                    file_path = os.path.join(root, file)
+                    tar.add(file_path, arcname=file)
+                    progress_size += os.path.getsize(file_path)
+                    progress_percentage = (progress_size / total_size) * 100
+                    logging.info(f"Tar file creating... {progress_percentage:.2f}%")
 
     logging.info(f"Tar file '{tar_file_name}' created successfully.")
     return tar_file_path
@@ -142,14 +153,13 @@ def delete_files_in_folder(output_path, extension = None):
     logging.info(f"All files {'' if extension is None else 'with extension ' + extension} deleted successfully.")
 
 
-def upload_to_s3(tar_file_name):
-    tar_file_name = os.path.splitext(tar_file_name)[0]
-    s3_command = f"aws s3 cp {tar_file_name} s3:{s3_FILE_NAME} --quiet --only-show-errors"
-    process = subprocess.Popen(f" echo {s3_command}", shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+def upload_to_s3(tar_file_path):
+    s3_command = f"aws s3 cp {tar_file_path} s3:{s3_FILE_NAME} --quiet --only-show-errors"
+    process = subprocess.Popen(s3_command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
     output, error = process.communicate()
 
     if process.returncode == 0:
-        logging.info(f"File '{os.path.basename(tar_file_name)}' uploaded to S3 successfully.")
+        logging.info(f"File '{os.path.basename(tar_file_path)}' uploaded to S3 successfully.")
         return True
     else:
         logging.error(f"Failed to upload file to S3: {error}")
@@ -164,6 +174,7 @@ if __name__ == "__main__":
     common_info, user_info_list = read_properties_file(properties_file)
     success_list, failure_list = create_command_for_backup(common_info, user_info_list)
     tar_file_path = create_tar_file(os.path.join(os.getcwd(), 'output'), properties_file)
+
 
 
     # Email content
